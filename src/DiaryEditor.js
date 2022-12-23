@@ -1,6 +1,11 @@
-import { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-const DiaryEditor = ({onCreate}) => {
+// App으로부터 props로 받은 onCreate 때문에 DiaryEditor는 변경사항 없는데도 App 때문에 리렌더링 됨
+const DiaryEditor = ({ onCreate }) => { 
+
+    useEffect(() => {
+        console.log("DiaryEditor 렌더");
+    })
 
     const authorInput = useRef();
     const contentInput = useRef();
@@ -11,6 +16,10 @@ const DiaryEditor = ({onCreate}) => {
         content: "",
         emotion: 1,
     })
+
+    // 같은 기능을 수행하는 state는 굳이 2개로 분리 안하고 위처럼 객체로 하나로 합칠 수 있다.
+    // let [author, setAuthor] = useState("");
+    // let [content, setContent] = useState(""); 
 
     // 두번째 방법
     const handleChangeState = (e) => {
@@ -46,9 +55,7 @@ const DiaryEditor = ({onCreate}) => {
         alert('저장 성공');
     }
 
-    // 같은 기능을 수행하는 state는 굳이 2개로 분리 안하고 위처럼 객체로 하나로 합칠 수 있다.
-/*     let [author, setAuthor] = useState("");
-    let [content, setContent] = useState(""); */
+
 
     return <div className='DiaryEditor'>
         <h2>오늘의 일기</h2>
@@ -78,6 +85,6 @@ const DiaryEditor = ({onCreate}) => {
             <button onClick={handleSubmit}>일기 저장하기</button>
         </div>
     </div>
-}
+};
 
-export default DiaryEditor;
+export default React.memo(DiaryEditor);

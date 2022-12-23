@@ -26,7 +26,7 @@ const DiaryItem = ({
 
     const handleQuitEdit = () => {
         setIsEdit(false);
-        setLocalContent(content);
+        setLocalContent(content); // 내용 변경 후 수정 취소할 경우, 변경 전 값인 content로 초기화 
     }
 
     const handleEdit = () => {
@@ -36,7 +36,7 @@ const DiaryItem = ({
         }
 
         if(window.confirm(`${id}번 째 일기를 수정하시겠습니까?`)) {
-            console.log(id, localContent)
+            // console.log(id, localContent)
             onEdit(id, localContent);
             // setIsEdit(false); // 되는지 확인
             toggleIsEdit();
