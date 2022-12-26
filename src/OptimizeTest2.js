@@ -1,6 +1,7 @@
-// 최적화 방법 중 React.memo 예제
+// React.memo 예제
 // 둘 다 같은 값으로 set하지만, 객체인 obj 변경 시에만 리렌더링 되고, count 변경 시에는 아무런 변화가 없다.
-// 그 이유는 객체는 얕은 비교를 하기 때문이다. 즉, 값으로 비교하지 않고, 주소값으로 비교한다는 것이다. 
+// 그 이유는 객체는 얕은 비교를 하기 때문이다. 즉, 값으로 비교하지 않고, 주소값으로 비교한다는 것이다.
+// 주소값이 아닌 값으로 비교하는 방법은 areEquals(prevProps, nextProps) 함수를 이용하는 OptimizeTest3 컴포넌트를 참고.
 import React, { useEffect, useState } from "react";
 
 const CounterA = React.memo(( {count} ) => {

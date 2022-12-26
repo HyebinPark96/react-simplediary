@@ -1,16 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
+import { DiaryDispatchContext } from './App';
 
-// App으로부터 props로 받은 onCreate 때문에 DiaryEditor는 변경사항 없는데도 App 때문에 리렌더링 됨
-const DiaryEditor = ({ onCreate }) => { 
+// 일기 데이터 수정, 삭제할 경우 App의 data state가 update
+// => App 리렌더링
+// => onCreate 재생성 
+// => 어떠한 변화도 없는 DiaryEditor 리렌더링 될 수 밖에 없음
+// 이처럼 불필요한 리렌더링 막기 위해 useCallback & React.memo 사용
+const DiaryEditor = (/* { onCreate } */) => { 
 
+    // 객체로 전달되었으므로 비구조화할당으로 받아오기
+    const {onCreate} = useContext(DiaryDispatchContext) 
+    
+    // 최적화 테스트
     useEffect(() => {
-        console.log("DiaryEditor 렌더");
+        // onsole.log("DiaryEditor 렌더");
     })
 
     const authorInput = useRef();
     const contentInput = useRef();
 
-    // 첫번째 방법
     const [state, setState] = useState({
         author: "",
         content: "",
@@ -21,7 +29,6 @@ const DiaryEditor = ({ onCreate }) => {
     // let [author, setAuthor] = useState("");
     // let [content, setContent] = useState(""); 
 
-    // 두번째 방법
     const handleChangeState = (e) => {
         // console.log(e.target.name); // key
         // console.log(e.target.value); // value
@@ -46,6 +53,7 @@ const DiaryEditor = ({ onCreate }) => {
         
         // console.log(state);
 
+        // 폼 초기화
         setState({
             author: "",
             content: "",
@@ -61,14 +69,16 @@ const DiaryEditor = ({ onCreate }) => {
         <h2>오늘의 일기</h2>
         <div>
             <input name='author' value={state.author} ref={authorInput} onChange={(e) => {
+                // state 변경 첫번째 방법
                 setState({
                     // 순서 주의
-                    ...state, // Spread 문법으로 인해 변경되지 않는 값은 기본값으로 설정됨
+                    ...state, // Spread 문법 => 수정하지 않은 값은 기본값으로 설정
                     author: e.target.value,
-                }); // set함수를 사용하지 않으면 author는 절대 변할 수 없고, value값 입력해도 아무런 변화가 없다.
+                }); 
             }}/>
         </div>
         <div>
+            {/* state 변경 두번째 방법 */}
             <textarea name='content' value={state.content} ref={contentInput} onChange={handleChangeState}/>
         </div>
         <div>
@@ -87,4 +97,5 @@ const DiaryEditor = ({ onCreate }) => {
     </div>
 };
 
-export default React.memo(DiaryEditor);
+// React.memo() : Props가 변경되지 않았다면 메모이징 된 내용을 그대로 사용한다.
+export default React.memo(DiaryEditor); // 새로 메모이징된 컴포넌트 export

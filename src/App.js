@@ -1,18 +1,51 @@
 import './App.css';
 import DiaryEditor from './DiaryEditor';
 import DiaryList from './DiaryList';
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useReducer } from 'react';
 /* import OptimizeTest from './OptimizeTest';
 import OptimizeTest2 from './OptimizeTest2';
 import OptimizeTest3 from './OptimizeTest3'; */
 
-// api https://jsonplaceholder.typicode.com/comments
+// 첫번째 인자 : 상태 변화 직전 state
+// 두번째 인자 : 어떤 상태 변화를 일으켜야 하는지에 대한 정보가 담긴 객체
+const reducer = (state, action) => { 
+  // switch-case문 (type별) 
+  switch(action.type) {
+    case 'INIT': {
+      return action.data; // 리턴값이 새로운 state가 됨
+    }
 
-const App = () => {
-  // 총 2번의 렌더링 거침 
-  // 1. 처음 렌더링될 때 data 빈값일 때
-  // 2, api 호출로 data 값 설정될 때 
-  const [data, setData] = useState([]);
+    case 'CREATE': {
+      const created_date = new Date().getTime();
+      const newItem = {
+        ...action.data,
+        created_date
+      }
+      return [newItem, ...state]
+    }
+
+    case 'REMOVE': {
+      // 전달받은 id(targetId)를 제외한 리스트 리턴
+      return state.filter((item) => item.id !== action.targetId);
+    }
+
+    case 'EDIT': {
+      return state.map((item) => item.id === action.targetId ? {...item, content: action.newContent} : item); 
+    }
+
+    default:
+      return state; 
+  }
+};
+// Props Drilling 막기 위해 Context(문맥) 사용 
+export const DiaryStateContext = React.createContext();
+export const DiaryDispatchContext = React.createContext();
+
+const App = () => {  
+  // useReducer 사용이유
+  // 복잡한 상태(setData) 변화 로직 을 컴포넌트 밖으로 꺼내기 위함 
+  const [data, dispatch] = useReducer(reducer, []); // dispatch : state update를 발생하게 함, reducer : state를 update하는 함수
+  // const [data, setData] = useState([]); 
 
   const dataId = useRef(0);
 
@@ -24,7 +57,6 @@ const App = () => {
 
     // console.log(res);
     const initData = res.slice(0, 20).map((item) => {
-      // 새로운 배열 반환
       return {
         author: item.email,
         content: item.body,
@@ -34,49 +66,43 @@ const App = () => {
       }
     })
 
-    setData(initData);
+    dispatch({type:'INIT', data: initData});
+    // setData(initData);
   };
 
   useEffect(() => {
     getData();
   }, [])
 
-  // useMemo 사용 금지
-  // 함수 자체를 props로 전달해야 하는데, useMemo은 값을 반환하기 때문
+  // 최적화 기법 3. useCallback 
+  // Props로 '함수'를 전달해야 한다면 '값'을 반환하는 useMemo 사용 불가
+  // useCallback으로 특정 함수를 새로 만들지 않고 재사용
   const onCreate = useCallback((author, content, emotion) => {
-    const created_date = new Date().getTime();
-    const newItem = {
-      author, 
-      content, 
-      emotion,
-      created_date,
-      id: dataId.current,
-    };
+
+    dispatch({type: 'CREATE', data: {author, content, emotion, id: dataId.current}});
+
     dataId.current += 1;
-    // setData([newItem, ...data]); // useCallback은 최초 렌더링 시 한 번만 호출되므로, 추가된 data list를 받지 못한다.
-    setData((data) => [newItem, ...data]); // 함수형 Update (상태변화함수인 set함수에 함수를 전달)
+    // setData([newItem, ...data]); // useCallback은 최초 렌더링 시 한 번만 호출되므로, 추가된 data list를 받지 못해 아래방식 사용
+    // setData((data) => [newItem, ...data]); // 함수형 Update (상태변화함수인 set함수에 함수를 전달)
+    
     // 함수를 재생성하면서 항상 최신의 state를 참조할 수 있도록 함.
   }, []);
 
-  const onRemove = (targetId) => {
+  const onRemove = useCallback((targetId) => {
     // console.log(targetId + '가 삭제되었습니다.');
-    // 전달받은 id를 제외한 리스트로 다시 set
-    const newDiaryList = data.filter((item) => item.id !== targetId);
-    setData(newDiaryList);
-  }
+    dispatch({type:'REMOVE', targetId});
+  }, []);
 
-  const onEdit = (targetId, newContent) => {
-    setData(
-      data.map((item) => 
-        item.id === targetId ? {...item, content: newContent} : item
-      )
-    );
-  };
+  const onEdit = useCallback((targetId, newContent) => {
+    dispatch({type: 'EDIT', targetId, newContent})
+  }, []);
 
-  // 최적화 방법 1. useMemo
-  // useMemo : 재연산하지 않고 기억해둠 (특정 값이 바뀔 때마다 리렌더링되어 비효율적일 때 사용하여, 
-  // 연산에 영향을 끼치지 않는다면 = 재연산할 필요가 없다면 useMemo 사용)
-  const getDiaryAnalysis = useMemo( // useMemo : 첫번째 인자로 콜백함수의 리턴값을 받아 연산 최적화
+  const memoizedDispatches = useMemo(() => { // 재생성되지 않게 useMemo 사용
+    return {onCreate, onRemove, onEdit}
+  }, [])
+
+  // 최적화 방법 1. useMemo : 첫번째 인자인 콜백함수의 리턴값을 반환 
+  const getDiaryAnalysis = useMemo(
     () => {
       // console.log('일기 분석 시작');
       
@@ -84,25 +110,31 @@ const App = () => {
       const badCount = data.length - goodCount;
       const goodRatio = (goodCount / data.length) * 100;
 
-      return { goodCount, badCount, goodRatio }; // 객체로 리턴
-    }, [data.length] // useState의 dependency Array과 동일하며, data.length가 변하지 않는다면 똑같은 리턴값을 다시 연산하지 않고 기억해둔다.
+      return { goodCount, badCount, goodRatio }; 
+    }, [data.length] // data.length 변하지 않았다면 재연산하지 않고 메모이징 된 값을 반환
   );
 
-  // 비구조화할당
-  const { goodCount, badCount, goodRatio } = getDiaryAnalysis; // getDiaryAnalysis() 에러 // useMemo : 콜백함수의 리턴값을 리턴하므로 함수 형태에서 값으로 변경해야 함
+  // 비구조화할당 
+  // const { goodCount, badCount, goodRatio } = getDiaryAnalysis(); // useMemo는 값을 리턴하므로 함수 형태에서 값으로 변경해야 함
+  const { goodCount, badCount, goodRatio } = getDiaryAnalysis;
 
-  return ( 
-    <div className="App">
-{/*       <OptimizeTest />
-      <OptimizeTest2 />
-      <OptimizeTest3 /> */}
-      <DiaryEditor onCreate={onCreate} />
-      <div>전체 일기 : {data.length}</div>
-      <div>기분 좋은 일기 개수 : {goodCount}</div>
-      <div>기분 나쁜 일기 개수 : {badCount}</div>
-      <div>기분 좋은 일기 비율 : {goodRatio}</div>
-      <DiaryList onEdit={onEdit} onRemove={onRemove} diaryList={data}/>
-    </div>
+  // Props Drilling : Props를 하위 컴포넌트에게 전달하기 위해 해당 데이터가 필요없는 컴포넌트에게도 전달해야 하는 구조
+  return (
+    <DiaryStateContext.Provider value={data}>
+      <DiaryDispatchContext.Provider value={memoizedDispatches}>
+        <div className="App">
+    {/*       <OptimizeTest />
+          <OptimizeTest2 />
+          <OptimizeTest3 /> */}
+          <DiaryEditor /* onCreate={onCreate}  *//>
+          <div>전체 일기 : {data.length}</div>
+          <div>기분 좋은 일기 개수 : {goodCount}</div>
+          <div>기분 나쁜 일기 개수 : {badCount}</div>
+          <div>기분 좋은 일기 비율 : {goodRatio}</div>
+          <DiaryList /* onEdit={onEdit} onRemove={onRemove} diaryList={data} *//> 
+        </div>
+      </DiaryDispatchContext.Provider>
+    </DiaryStateContext.Provider>
   );
 }
 
