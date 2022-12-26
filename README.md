@@ -1,4 +1,4 @@
-# 📌 React + Spring Boot 게시판 구현  
+# 📌 React를 이용한 오늘의 감정 일기
 ## 🔨 개발환경
 * React Version 18.2.0
 ## 🔍 학습목표
